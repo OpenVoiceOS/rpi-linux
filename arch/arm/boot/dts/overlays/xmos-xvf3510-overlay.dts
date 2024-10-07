@@ -1,0 +1,58 @@
+// Definitions for XMOS VocalFusion 3510-INT
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2835";
+
+	fragment@0 {
+		target = <&gpio>;
+		__overlay__ {
+			xvf_clk_pin: xvf_clk_pin {
+				brcm,pins = <4>;
+				brcm,function = <4>;
+			};
+			xvf_ctrl_pins: xvf_ctrl_pins {
+				brcm,pins = <16 27>;
+				brcm,function = <1 1>;
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&i2s_clk_producer>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@2 {
+		target-path = "/";
+		__overlay__ {
+			dummy-codec {
+				#sound-dai-cells = <0>;
+				compatible = "snd-soc-dummy";
+				status = "okay";
+			};
+		};
+	};
+
+	fragment@3 {
+		target = <&sound>;
+		__overlay__ {
+			compatible = "xmos,xmos-xvf3510";
+			i2s-controller = <&i2s_clk_producer>;
+			status = "okay";
+
+			clocks = <&clocks 38>;
+			clock-names = "mclk";
+			clock-frequency = <24576000>;
+                
+			pinctrl-names = "default";
+			pinctrl-0 = <&xvf_clk_pin &xvf_ctrl_pins>;
+
+			pwr-gpio = <&gpio 16 0>;
+			rst-gpio = <&gpio 27 0>;
+		};
+	};
+};

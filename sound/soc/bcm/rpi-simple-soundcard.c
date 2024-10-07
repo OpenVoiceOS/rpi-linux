@@ -33,6 +33,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/gpio/consumer.h>
+#include <linux/clk.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -473,6 +474,86 @@ static struct snd_rpi_simple_drvdata drvdata_pifi_mini_210 = {
 	.fixed_bclk_ratio = 64,
 };
 
+SND_SOC_DAILINK_DEFS(xmos_xvf3510,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_CODEC("snd-soc-dummy", "snd-soc-dummy-dai")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
+static int xmos_xvf3510_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct gpio_desc *pwr_gpio, *rst_gpio;
+	struct clk *mclk;
+	int rate, ret;
+
+	codec_dai->driver->capture.channels_max = 2;
+	codec_dai->driver->capture.rates = SNDRV_PCM_RATE_48000;
+
+	// Obtain and configure the master clock
+	mclk = devm_clk_get(snd_rpi_simple.dev, NULL);
+	if (IS_ERR(mclk)) {
+		dev_err(snd_rpi_simple.dev, "Failed to get clock: %ld\n", PTR_ERR(mclk));
+		return PTR_ERR(mclk);
+	}
+
+	// Read clock frequency from the DT
+	ret = of_property_read_u32(snd_rpi_simple.dev->of_node, "clock-frequency", &rate);
+	if (ret) {
+		dev_err(snd_rpi_simple.dev, "Failed to read 'clock-frequency' from device tree: %d\n", ret);
+		return ret;
+	}
+
+	dev_info(snd_rpi_simple.dev, "rate set to: %u Hz\n", rate);
+
+	// Set the clock to the desired frequency
+	ret = clk_set_rate(mclk, rate);
+	if (ret) {
+		dev_err(snd_rpi_simple.dev, "Failed to set clock rate: %d\n", ret);
+		return ret;
+	}
+
+	clk_prepare_enable(mclk);
+	dev_info(snd_rpi_simple.dev, "mclk set to: %lu Hz\n", clk_get_rate(mclk));
+
+	// Configure power and reset GPIOs
+	pwr_gpio = devm_gpiod_get(snd_rpi_simple.dev, "pwr", GPIOD_OUT_HIGH);
+	if (IS_ERR(pwr_gpio)) {
+        	dev_err(snd_rpi_simple.dev, "Failed to get PWR GPIO: %ld\n", PTR_ERR(pwr_gpio));
+        	return PTR_ERR(pwr_gpio);
+	}
+
+	rst_gpio = devm_gpiod_get(snd_rpi_simple.dev, "rst", GPIOD_OUT_HIGH);
+	if (IS_ERR(rst_gpio)) {
+		dev_err(snd_rpi_simple.dev, "Failed to get RST GPIO: %ld\n", PTR_ERR(rst_gpio));
+		return PTR_ERR(rst_gpio);
+	}
+
+	// Initialise the XMOS chip
+	gpiod_set_value(pwr_gpio, 1);
+	gpiod_set_value(rst_gpio, 1);
+
+	pr_info("XMOS VocalFusion 3510-INT soundcard module loaded\n");
+	return 0;
+}
+
+static struct snd_soc_dai_link snd_xmos_xvf3510_dai[] = {
+	{
+		.name           = "XMOS VocalFusion 3510-INT",
+		.stream_name    = "XMOS VocalFusion 3510-INT HiFi",
+		.dai_fmt        = SND_SOC_DAIFMT_I2S |
+					SND_SOC_DAIFMT_NB_NF |
+					SND_SOC_DAIFMT_CBS_CFS,
+		.init           = xmos_xvf3510_init,
+		SND_SOC_DAILINK_REG(xmos_xvf3510),
+	},
+};
+
+static struct snd_rpi_simple_drvdata drvdata_xmos_xvf3510 = {
+	.card_name = "snd_xvf3510",
+	.dai       = snd_xmos_xvf3510_dai,
+	.fixed_bclk_ratio = 64,
+};
+
 static const struct of_device_id snd_rpi_simple_of_match[] = {
 	{ .compatible = "adi,adau1977-adc",
 		.data = (void *) &drvdata_adau1977 },
@@ -497,6 +578,8 @@ static const struct of_device_id snd_rpi_simple_of_match[] = {
 		.data = (void *) &drvdata_merus_amp },
 	{ .compatible = "pifi,pifi-mini-210",
 		.data = (void *) &drvdata_pifi_mini_210 },
+	{ .compatible = "xmos,xmos-xvf3510",
+                .data = (void *) &drvdata_xmos_xvf3510 },
 	{},
 };
 

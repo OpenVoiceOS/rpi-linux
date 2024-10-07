@@ -5487,6 +5487,13 @@ Params: alsaname                Changes the card name in ALSA
         compatible              Changes the codec compatibility
 
 
+Name:   xmos-xvf3510
+Info:   Overlay for the XMOS VocalFusion 3510-INT soundcard
+        https://www.xmos.com/download/XVF3510-INT-Datasheet(4_1).pdf
+Load:   dtoverlay=xmos-xvf3510
+Params: <None>
+
+
 Troubleshooting
 ===============
 

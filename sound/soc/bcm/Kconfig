@@ -141,6 +141,12 @@ config SND_BCM2708_SOC_RPI_PROTO
 	help
 	  Say Y or M if you want to add support for Audio Codec Board PROTO (WM8731).
 
+config SND_BCM2708_SOC_XMOS_XVF3510
+        tristate "Support for XMOS VocalFusion 3510-INT"
+        select SND_RPI_SIMPLE_SOUNDCARD
+        help
+          Say Y or M if you want to add support for XMOS VocalFusion 3510-INT.
+
 config SND_BCM2708_SOC_JUSTBOOM_BOTH
 	tristate "Support for simultaneous JustBoom Digi and JustBoom DAC"
 	select SND_SOC_WM8804

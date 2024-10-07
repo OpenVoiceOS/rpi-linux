@@ -511,4 +511,14 @@
 		bcm2712;
 	};
 
+	xmos-xvf3510 {
+		bcm2835;
+                bcm2711;
+                bcm2712 = "xmos-xvf3510-pi5";
+	};
+
+	xmos-xvf3510-pi5 {
+		bcm2712;
+	};
+
 };
